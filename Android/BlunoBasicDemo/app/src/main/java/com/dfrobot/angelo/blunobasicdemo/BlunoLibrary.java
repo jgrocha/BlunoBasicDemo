@@ -280,6 +280,9 @@ public abstract  class BlunoLibrary  extends Activity{
     // ACTION_DATA_AVAILABLE: received data from the device.  This can be a result of read
     //                        or notification operations.
     private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+		int pos;
+		StringBuilder queue = new StringBuilder("");
+		String temp;
         @SuppressLint("DefaultLocale")
 		@Override
         public void onReceive(Context context, Intent intent) {
@@ -325,7 +328,37 @@ public abstract  class BlunoLibrary  extends Activity{
 					}
             	}
             	else if (mSCharacteristic==mSerialPortCharacteristic) {
-            		onSerialReceived(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
+					System.out.println("mGattUpdateReceiver->onReceive->Serial Port");
+					String readMessage = intent.getStringExtra(BluetoothLeService.EXTRA_DATA);
+					queue.append(readMessage);
+					pos = queue.indexOf("\n");
+					while (pos >= 0) {
+						// Log.d("Temperatura", "indexOf() #" + pos);
+						temp = queue.substring(0, pos - 1);
+						queue.delete(0, pos + 1);
+						Log.d("ActivEng", "sendBroadcast " + temp);
+						if (temp.length() > 1) {
+							switch (temp.charAt(0)) {
+								case 'R':
+									Log.d("JGR", "ACTION_DATA_AVAILABLE (mSCharacteristic == " + mSCharacteristic.toString() + ") → " + temp);
+									onSerialReceived(temp);
+									break;
+								case 'W':
+									Log.d("JGR", "ACTION_DATA_AVAILABLE (mSCharacteristic == " + mSCharacteristic.toString() + ") → " + temp);
+									onSerialReceived(temp);
+									break;
+								case 'M':
+									break;
+								case 'S':
+									break;
+								case 'T':
+									break;
+								default:
+									break;
+							}
+						}
+						pos = queue.indexOf("\n");
+					}
 				}
             	
             
@@ -347,13 +380,15 @@ public abstract  class BlunoLibrary  extends Activity{
 			mConnectionState=connectionStateEnum.isScanning;
 			onConectionStateChange(mConnectionState);
 			scanLeDevice(true);
-			mScanDeviceDialog.show();
+			// JGR if we want to seed the dialog to select BLE device
+			//mScanDeviceDialog.show();
 			break;
 		case isToScan:
 			mConnectionState=connectionStateEnum.isScanning;
 			onConectionStateChange(mConnectionState);
 			scanLeDevice(true);
-			mScanDeviceDialog.show();
+			// JGR if we want to seed the dialog to select BLE device
+			//mScanDeviceDialog.show();
 			break;
 		case isScanning:
 			
@@ -436,14 +471,50 @@ public abstract  class BlunoLibrary  extends Activity{
 			((Activity) mainContext).runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
-					System.out.println("mLeScanCallback onLeScan run ");
+					// JGR
+					System.out.println("mLeScanCallback onLeScan run →→→ Address: " + device.getAddress() + " Name: " + device.getName().toString());
+					// Connect immediately to the device...
+					if (device.getName().toString().equals("BlunoV1.8")) {
+						connectToDevice(device);
+					}
 					mLeDeviceListAdapter.addDevice(device);
 					mLeDeviceListAdapter.notifyDataSetChanged();
 				}
 			});
 		}
 	};
-	
+
+	// JGR
+	void connectToDevice(BluetoothDevice device) {
+		if (device == null)
+			return;
+		scanLeDevice(false);
+
+		if (device.getName() == null || device.getAddress() == null) {
+			mConnectionState = connectionStateEnum.isToScan;
+			onConectionStateChange(mConnectionState);
+		} else {
+
+			System.out.println("onListItemClick " + device.getName().toString());
+
+			System.out.println("Device Name:" + device.getName() + "   " + "Device Name:" + device.getAddress());
+
+			mDeviceName = device.getName().toString();
+			mDeviceAddress = device.getAddress().toString();
+
+			if (mBluetoothLeService.connect(mDeviceAddress)) {
+				Log.d(TAG, "Connect request success");
+				mConnectionState = connectionStateEnum.isConnecting;
+				onConectionStateChange(mConnectionState);
+				mHandler.postDelayed(mConnectingOverTimeRunnable, 10000);
+			} else {
+				Log.d(TAG, "Connect request fail");
+				mConnectionState = connectionStateEnum.isToScan;
+				onConectionStateChange(mConnectionState);
+			}
+		}
+	}
+
     private void getGattServices(List<BluetoothGattService> gattServices) {
         if (gattServices == null) return;
         String uuid = null;

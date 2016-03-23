@@ -35,7 +35,7 @@ public class MainActivity  extends BlunoLibrary {
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
 
-				serialSend(serialSendText.getText().toString());				//send the data to the BLUNO
+				serialSend(serialSendText.getText().toString() + "\n");				//send the data to the BLUNO
 			}
 		});
 
@@ -54,6 +54,10 @@ public class MainActivity  extends BlunoLibrary {
 	protected void onResume(){
 		super.onResume();
 		System.out.println("BlUNOActivity onResume");
+
+		// JGR, initiate the BLE discover process
+		buttonScanOnClickProcess();
+
 		onResumeProcess();														//onResume Process by BlunoLibrary
 	}
 	
